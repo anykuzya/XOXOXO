@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:convert';
+import 'dart:math';
 
 void send(WebSocket sock, type, mes) {
   sock.add(JSON.encode(
@@ -12,54 +13,107 @@ class Player {
   String label;
   bool isCurrent = false;
   WebSocket socket;
+  Point anchor = new Point(0, 0);
+
   Player(int gId, String lab, WebSocket sock) {
     gameId = gId;
     label = lab;
     socket = sock;
   }
-}
-class Cell {
-  int x;
-  int y;
-  Cell(x, y) {
-    this.x = x;
-    this.y = y;
+
+  void drawField(Map<Point, String> labels) {
+    for (int i = 0; i < 15; i++) {
+      for (int j = 0; j < 15; j++) {
+        var mes = {
+          'x': i,
+          'y': j,
+          'label': labels[new Point(i - anchor.x, j - anchor.y)] ?? 'empty'
+        };
+        send(socket, 'redraw', mes);
+      }
+    }
   }
 }
 class Game {
   int id;
-  String cur;
   Player o;
   Player x;
-  Map<Cell, String> labels = new Map<Cell, String>();
-  Cell anchor = new Cell(0,0);
+  Map<Point, String> labels = new Map<Point, String>();
   Game(int gid, Player px, Player po) {
     id = gid;
     x = px;
     o = po;
-    drawField(x.socket);
-    drawField(o.socket);
+    x.drawField(labels);
+    o.drawField(labels);
+    x.isCurrent = true;
   }
-  void drawField(WebSocket sock) {
-    for (int i = 0; i < 15; i++) {
-      for (int j = 0; j < 15; j++) {
-        int x = anchor.x + i;
-        int y = anchor.y + i;
-        var mes = {'x': x, 'y': y, 'label': labels[new Cell(x, y)] ?? 'empty'};
-        mes['x'] = anchor.x + i;
-        mes['y'] = anchor.y + j;
-        mes['label'] = labels[new Cell(mes['x'], mes['y'])] ?? 'empty';
-        send(sock, 'redraw', mes);
+  void act(Player player, var value) {
+    if (player.isCurrent) {
+      Point cell = new Point(value['x'] + player.anchor.x, value['y'] + player.anchor.y);
+      if (labels[cell] != null) {
+        return;
+      }
+      labels[cell] = player.label;
+
+      send(x.socket, 'redraw', {
+        'x': cell.x - x.anchor.x,
+        'y': cell.y - x.anchor.y,
+        'label': player.label
+      });
+      send(o.socket, 'redraw', {
+        'x': cell.x - o.anchor.x,
+        'y': cell.y - o.anchor.y,
+        'label': player.label
+      });
+      player.isCurrent = false;
+
+      var win = checkWin(player, cell);
+      if (win == null) {
+        if (player.label == 'x') {
+          o.isCurrent = true;
+        } else {
+          x.isCurrent = true;
+        }
+      } else {
+        send(x.socket, 'win', win);
+        send(o.socket, 'win', win);
       }
     }
   }
-  void act(Player player, var value) {
-    Cell cell = new Cell(value['x'], value['y']);
-    labels[cell] = player.label;
-    send(x.socket, 'redraw', {'x': cell.x, 'y':cell.y, 'label': player.label});
-    send(o.socket, 'redraw', {'x': cell.x, 'y':cell.y, 'label': player.label});
+  dynamic checkWin(Player player, Point fresh) {
+    var win = null;
+    String label = player.label;
+    win = (((checkDirection(fresh, new Point(0, 1), label) ??
+             checkDirection(fresh, new Point(1, 0), label)) ??
+             checkDirection(fresh, new Point(1, 1), label)) ??
+             checkDirection(fresh, new Point(-1, 1), label));
+    return win;
   }
-
+  dynamic checkDirection(Point pivot, Point direction, String label) {
+    while (labels[pivot] == label) {
+      pivot -= direction;
+    }
+    int line = 0;
+    pivot += direction;
+    var win = {
+      'x_0': pivot.x,
+      'x_1': null,
+      'y_0': pivot.y,
+      'y_1': null
+    };
+    while (labels[pivot] == label && line < 5) {
+      pivot += direction;
+      line += 1;
+    }
+    pivot -= direction;
+    if (line == 5) {
+      win['x_1'] = pivot.x;
+      win['y_1'] = pivot.y;
+      return win;
+    } else {
+      return null;
+    }
+  }
 }
 class Controller {
   Map<WebSocket, Player> allClients = new Map<WebSocket, Player>();
@@ -92,6 +146,17 @@ class Controller {
     var mes = JSON.decode(data);
     if (mes['type'] == 'action') {
       game.act(player, mes['value']);
+//    } else if (mes['type'] == 'redraw request') {
+//      if (mes['value'] == 'up') {
+//        player.anchor = new Point(player.anchor.x, player.anchor.y - 1);
+//      } else if (mes['value'] == 'down') {
+//        player.anchor = new Point(player.anchor.x, player.anchor.y + 1);
+//      } else if (mes['value'] == 'left') {
+//        player.anchor = new Point(player.anchor.x - 1, player.anchor.y);
+//      } else if (mes['value'] == 'right') {
+//        player.anchor = new Point(player.anchor.x + 1, player.anchor.y);
+//      }
+//      player.drawField(game.labels);
     }
   }
 }

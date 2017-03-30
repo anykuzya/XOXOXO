@@ -2,7 +2,7 @@
  * Created by anna on 28.03.17.
  */
 
-
+var waiting = true;
 var field = document.getElementById("field");
 ctx = field.getContext('2d');
 size = field.width / 15;
@@ -29,6 +29,7 @@ function drawSquare(x, y, label) {
         ctx.arc(x * size + size/2, y * size + size / 2, size / 3, 0, 2 * Math.PI);
         ctx.stroke();
     }
+    waiting = false;
 }
 function drawWin(x_0, y_0, x_1, y_1) {
     ctx.strokeStyle = 'red';
@@ -38,9 +39,11 @@ function drawWin(x_0, y_0, x_1, y_1) {
     ctx.stroke();
 }
 function sendMess(mes) {
-    var jsonMes = JSON.stringify(mes);
-    window.console.log(jsonMes);
-    connection.send(jsonMes);
+    if (!waiting) {
+        var jsonMes = JSON.stringify(mes);
+        window.console.log(jsonMes);
+        connection.send(jsonMes);
+    }
 }
 
 connection.onmessage = function (event) {
