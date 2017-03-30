@@ -6,10 +6,10 @@
 var field = document.getElementById("field");
 ctx = field.getContext('2d');
 size = field.width / 15;
-// var connection = new WebSocket("ws://" +
-//     window.location.hostname + ":" + window.location.port +
-//     "/ws"
-// );
+var connection = new WebSocket("ws://" +
+    window.location.hostname + ":" + window.location.port +
+    "/ws"
+);
 function drawSquare(x, y, label) {
     var field = document.getElementById("field");
     ctx.fillStyle = '#FFFFFF';
@@ -24,7 +24,7 @@ function drawSquare(x, y, label) {
         ctx.moveTo(x*size + size / 6, y*size + size * 5 / 6);
         ctx.lineTo(x*size + size * 5 / 6, y*size + size /6);
         ctx.stroke();
-    }  else if (label == 'o') {
+    } else if (label == 'o') {
         ctx.beginPath();
         ctx.arc(x * size + size/2, y * size + size / 2, size / 3, 0, 2 * Math.PI);
         ctx.stroke();
@@ -38,13 +38,23 @@ function drawWin(x_0, y_0, x_1, y_1) {
     ctx.stroke();
 }
 function sendMess(mes) {
-    // connection.send(JSON.stringify(mes));
+    var jsonMes = JSON.stringify(mes);
+    window.console.log(jsonMes);
+    connection.send(jsonMes);
 }
 
-// connection.onmessage = function (event) {
-//     var mes = JSON.parse(event.data);
-//     drawSquare(mes.value.x, mes.value.y, mes.value.label);
-// };
+connection.onmessage = function (event) {
+    var command = JSON.parse(event.data);
+    if (command.type == 'redraw') {
+        drawSquare(command.value.x, command.value.y, command.value.label);
+    } else if (command.type == 'win') {
+        drawWin(command.value.x_0, command.value.y_0, command.value.x_1, command.value.y_1)
+    } else if (command.type == 'wait') {
+        ctx.font = size + "px Arial";
+        ctx.textAlign = "center";
+        ctx.strokeText('waiting for opponent', size*15/2, size*15/2);
+    }
+};
 
 field.onclick = function (event) {
     var mes = {
@@ -58,7 +68,9 @@ document.onkeydown = function (event) {
         'type': 'redraw request',
         'value': undefined
     }
-    if (event.keyCode == 37) {
+    if (event.keyCode < 37 || event.keyCode > 40) {
+        return
+    } else if (event.keyCode == 37) {
         mes.value = 'left';
     } else  if (event.keyCode == 38) {
         mes.value = 'up';
@@ -67,5 +79,5 @@ document.onkeydown = function (event) {
     } else if (event.keyCode == 40) {
         mes.value = 'down'
     }
-
+    sendMess(mes);
 }
