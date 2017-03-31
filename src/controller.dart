@@ -27,7 +27,7 @@ class Player {
         var mes = {
           'x': i,
           'y': j,
-          'label': labels[new Point(i - anchor.x, j - anchor.y)] ?? 'empty'
+          'label': labels[new Point(i + anchor.x, j + anchor.y)] ?? 'empty'
         };
         send(socket, 'redraw', mes);
       }
@@ -75,8 +75,20 @@ class Game {
           x.isCurrent = true;
         }
       } else {
-        send(x.socket, 'win', win);
-        send(o.socket, 'win', win);
+        var winX = {
+        'x_0': win['x_0'] -x.anchor.x,
+        'y_0': win['y_0'] - x.anchor.y,
+        'x_1': win['x_1'] - x.anchor.x,
+        'y_1': win['y_1'] - x.anchor.y
+      };
+        var winO = {
+          'x_0': win['x_0'] - o.anchor.x,
+          'y_0': win['y_0'] - o.anchor.y,
+          'x_1': win['x_1'] - o.anchor.x,
+          'y_1': win['y_1'] - o.anchor.y
+        };
+        send(x.socket, 'win', winX);
+        send(o.socket, 'win', winO);
       }
     }
   }
@@ -146,17 +158,17 @@ class Controller {
     var mes = JSON.decode(data);
     if (mes['type'] == 'action') {
       game.act(player, mes['value']);
-//    } else if (mes['type'] == 'redraw request') {
-//      if (mes['value'] == 'up') {
-//        player.anchor = new Point(player.anchor.x, player.anchor.y - 1);
-//      } else if (mes['value'] == 'down') {
-//        player.anchor = new Point(player.anchor.x, player.anchor.y + 1);
-//      } else if (mes['value'] == 'left') {
-//        player.anchor = new Point(player.anchor.x - 1, player.anchor.y);
-//      } else if (mes['value'] == 'right') {
-//        player.anchor = new Point(player.anchor.x + 1, player.anchor.y);
-//      }
-//      player.drawField(game.labels);
+    } else if (mes['type'] == 'redraw request') {
+      if (mes['value'] == 'up') {
+        player.anchor = new Point(player.anchor.x, player.anchor.y - 1);
+      } else if (mes['value'] == 'down') {
+        player.anchor = new Point(player.anchor.x, player.anchor.y + 1);
+      } else if (mes['value'] == 'left') {
+        player.anchor = new Point(player.anchor.x - 1, player.anchor.y);
+      } else if (mes['value'] == 'right') {
+        player.anchor = new Point(player.anchor.x + 1, player.anchor.y);
+      }
+      player.drawField(game.labels);
     }
   }
 }

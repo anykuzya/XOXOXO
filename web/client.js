@@ -37,6 +37,7 @@ function drawWin(x_0, y_0, x_1, y_1) {
     ctx.moveTo(x_0 * size + size / 2, y_0 * size + size / 2);
     ctx.lineTo(x_1 * size + size / 2, y_1 * size + size / 2);
     ctx.stroke();
+    waiting = true;
 }
 function sendMess(mes) {
     if (!waiting) {
